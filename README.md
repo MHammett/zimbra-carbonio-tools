@@ -92,8 +92,12 @@ so a failed batch can be retried by filtering the list.
   `addMessage` with `<new id> (<file>)`. `createFolder` on an existing folder
   prints `mail.ALREADY_EXISTS`, which is harmless; the importer ignores it.
 - **Blob path layout** is
-  `<volume>/<mailbox_id >> 12>/<mailbox_id>/msg/<item_id >> 12>/<item_id>-<mod_content>.msg`.
-  `restore_fetch.sh` resolves the volume from `zimbra.volume`.
+  `<volume>/<(mailbox_id >> 12) & 255>/<mailbox_id>/msg/<(item_id >> 12) & 255>/<item_id>-<mod_content>.msg`
+  with the bit widths taken from `zimbra.volume` (`file_bits`,
+  `file_group_bits`, `mailbox_bits`, `mailbox_group_bits`). The group mask
+  matters: the directory index wraps every 2^20 items, so item 1048576 is in
+  `msg/0`, not `msg/256`. A busy alerts mailbox crosses that line in a few
+  years, and without the mask every later message looks missing from disk.
 - **Throughput** of the import is roughly 20 to 40 messages a second on a
   modest VM; a hundred thousand messages is an hour or two.
 
