@@ -98,8 +98,16 @@ so a failed batch can be retried by filtering the list.
   matters: the directory index wraps every 2^20 items, so item 1048576 is in
   `msg/0`, not `msg/256`. A busy alerts mailbox crosses that line in a few
   years, and without the mask every later message looks missing from disk.
-- **Throughput** of the import is roughly 20 to 40 messages a second on a
-  modest VM; a hundred thousand messages is an hour or two.
+- **Throughput** depends on the target mailbox. Into a small mailbox a
+  single `zmmailbox` session adds 10 to 15 messages a second; into one
+  that already holds hundreds of thousands of messages each add takes close
+  to a second server-side. The mailbox server scales across sessions, so
+  split a big account's list into chunks (`head`/`sed` on the TSV, keep the
+  header) and run several importers at once: four sessions gave about three
+  times the single-session rate with no lock failures on an 8-core box.
+- **Pause IMAP clients on the target mailbox** during a large import. A
+  phone client that re-runs a folder search after every batch can hold the
+  mailbox lock for minutes at a time and stall the import to a crawl.
 
 ## Several old servers
 
