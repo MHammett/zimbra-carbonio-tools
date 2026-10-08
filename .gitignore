@@ -1,0 +1,5 @@
+inventory/
+*.tsv
+*.tsv.gz
+*.result.tsv
+__pycache__/
