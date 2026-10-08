@@ -97,6 +97,15 @@ so a failed batch can be retried by filtering the list.
 - **Throughput** of the import is roughly 20 to 40 messages a second on a
   modest VM; a hundred thousand messages is an hour or two.
 
+## Several old servers
+
+When more than one old server holds copies, diff and export each against
+production, then run `merge_exports.py OUT a.tsv b.tsv ...` with the inputs
+in order of preference (newest copy first). Each output keeps only the rows
+no earlier input claimed, so every message is fetched and imported once.
+Keep a separate blob directory per source on the destination, because
+mailbox ids collide across servers.
+
 ## Helpers
 
 - `queue_summary.py` summarises a large Postfix queue from `postqueue -j`
