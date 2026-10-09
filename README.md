@@ -105,6 +105,12 @@ so a failed batch can be retried by filtering the list.
   split a big account's list into chunks (`head`/`sed` on the TSV, keep the
   header) and run several importers at once: four sessions gave about three
   times the single-session rate with no lock failures on an 8-core box.
+  Do not go much beyond six on one mailbox: the mailbox lock allows 15
+  waiters, and with eleven sessions plus the account's own IMAP clients,
+  adds were rejected with `LockFailedException: too many waiters: 15` and
+  the client's SOAP read timed out (`remote.TIMEOUT`). A failed add leaves
+  nothing behind, so the recovery is simply to re-inventory the destination,
+  diff again and import the remainder.
 - **Turn off conversation threading on the target account before a bulk
   import of alert or notification mail.** Each add joins the message to a
   subject-threaded conversation and reloads every message already in it
