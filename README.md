@@ -137,6 +137,49 @@ no earlier input claimed, so every message is fetched and imported once.
 Keep a separate blob directory per source on the destination, because
 mailbox ids collide across servers.
 
+## Reading a mailstore that only exists as a disk image
+
+One of the old mailstores here survived only as a VMware VM folder on an
+NFS datastore (base `-flat.vmdk` plus two snapshot deltas). It never had
+to boot. On a Proxmox host with the datastore mounted read-only:
+
+```bash
+qemu-img info --backing-chain "Mailstore-000001.vmdk"   # confirm the chain
+modprobe nbd max_part=16
+qemu-nbd -r -c /dev/nbd0 "Mailstore-000001.vmdk"        # the chain's top
+mount -o ro,noload /dev/nbd0p1 /mnt/ms_ro
+mount -t overlay overlay -o lowerdir=/mnt/ms_ro,upperdir=/srv/ovl/upper,workdir=/srv/ovl/work /mnt/ms
+for m in proc sys dev dev/pts; do mount --bind /$m /mnt/ms/$m; done
+chroot /mnt/ms /bin/su - zimbra -c "/opt/zimbra/bin/mysql.server start"
+chroot /mnt/ms /bin/su - zimbra -c "bash /tmp/dump_inventory.sh /opt/zimbra"
+```
+
+Three things bit on the way:
+
+- InnoDB with `O_DIRECT` and native AIO hung for ten minutes and
+  asserted on the overlay. Set `innodb_flush_method = fsync` and
+  `innodb_use_native_aio = 0` in the chroot's `my.cnf` (the edit lands in
+  the overlay, the image is untouched).
+- `innodb_read_only = 1` refuses to start if the redo log is a few bytes
+  ahead of the data files, which a clean shutdown can still leave. Let it
+  run read-write; all writes go to the overlay.
+- Orphaned system tablespaces (`mysql/innodb_table_stats.ibd`,
+  `innodb_index_stats.ibd`, `gtid_slave_pos.ibd`) collided with real
+  tablespace ids and crashed startup with "Attempted to open a previously
+  opened tablespace". Deleting those files in the overlay (a whiteout, not a
+  real delete) fixed it. The original server had been logging that those
+  tables did not exist for years.
+
+`restore_fetch.sh` then runs inside the chroot and its tar can be piped
+out through `ssh` to the destination.
+
+## When the source has rows but no files
+
+A half-finished or abandoned migration target can carry `mail_item` rows
+whose blobs were never written. `restore_fetch.sh` lists those in
+`/tmp/restore_fetch_missing.txt` and skips them. If no other server has the
+message, it is gone; count it as unrecoverable rather than retrying.
+
 ## Helpers
 
 - `queue_summary.py` summarises a large Postfix queue from `postqueue -j`
