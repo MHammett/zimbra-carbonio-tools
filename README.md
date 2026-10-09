@@ -105,6 +105,19 @@ so a failed batch can be retried by filtering the list.
   split a big account's list into chunks (`head`/`sed` on the TSV, keep the
   header) and run several importers at once: four sessions gave about three
   times the single-session rate with no lock failures on an 8-core box.
+- **Turn off conversation threading on the target account before a bulk
+  import of alert or notification mail.** Each add joins the message to a
+  subject-threaded conversation and reloads every message already in it
+  to recalculate metadata (`Conversation.addChild` ->
+  `DbMailItem.getByParent`). Repeated subjects make that cost grow with
+  every message, so the import decays: 1,730 -> 1,130 adds per five
+  minutes over twelve hours into one alerts mailbox. Setting
+  `zmprov ma user@example.com zimbraMailThreadingAlgorithm none` on just
+  that account took it to 10,200 per five minutes immediately. Put it
+  back afterwards with
+  `zmprov ma user@example.com -zimbraMailThreadingAlgorithm none`, which
+  restores inheritance from the class of service. A thread dump
+  (`jcmd <mailboxd pid> Thread.print`) is how to find this kind of thing.
 - **Pause IMAP clients on the target mailbox** during a large import. A
   phone client that re-runs a folder search after every batch can hold the
   mailbox lock for minutes at a time and stall the import to a crawl.
