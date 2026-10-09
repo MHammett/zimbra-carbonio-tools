@@ -17,6 +17,33 @@ messages in a handful of mailboxes while reporting success. They found the
 losses in an afternoon and put the messages back with their original folder,
 received date, flags, unread state and tags.
 
+## What is here
+
+| Script | Runs on | Does |
+|---|---|---|
+| `dump_inventory.sh` | each mail server, as `zimbra`/`zextras` | read-only inventory of every mailbox, folder and message into `/tmp/claude_inv/` |
+| `diff_inventory.py` | your workstation | compares two inventories by digest; `--export` writes the missing set as TSV |
+| `merge_exports.py` | your workstation | when several old servers overlap, assigns each missing message to one source |
+| `restore_fetch.sh` | the old server | resolves each listed message to its file and streams them out as a tar |
+| `restore_import.py` | the destination, as the service user | re-adds the messages with `zmmailbox`, keeping folder, date, flags, unread state and tags |
+| `queue_summary.py`, `import_dates.py` | anywhere | diagnostics, see Helpers |
+
+## Requirements
+
+- Zimbra 8.x or Carbonio, with shell access as the service user (`zimbra` or
+  `zextras`) on every server involved. No root is needed anywhere.
+- The product's own `mysql` client and `zmmailbox`, which every install has.
+- `bash`, `tar` and `python3` 3.8 or later on the servers; Python 3.8 or
+  later on the workstation, standard library only.
+- Disk space on the destination for the raw messages being restored
+  (the export's `size` column adds up to it).
+
+What gets written: `/tmp/claude_inv/` and `/tmp/restore_fetch_missing.txt`
+on the servers, the tar you extract on the destination, and the restored
+messages themselves, which go in only through `zmmailbox`. Nothing touches
+the database or the store directly, and the inventories are plain TSV you
+can inspect.
+
 ## The method
 
 1. **Inventory** each server with `dump_inventory.sh`. Read-only. Needs only
@@ -73,6 +100,26 @@ python3 restore_import.py restore.tsv /tmp/restore --tag=Restored-2026-10
 
 `restore.tsv.result.tsv` records the new item id, or a blank, for every row,
 so a failed batch can be retried by filtering the list.
+
+What the diff looks like (one real run, addresses changed):
+
+```
+SRC inv/old-server: 146 accounts, 2,711,110 distinct messages
+DST inv/production: 307 accounts, 3,254,483 distinct messages
+accounts on SRC but not DST: 0
+
+shared accounts: 142  SRC msgs 2,711,110  present on DST by digest 2,526,107 (93.2%)  MISSING 185,003 (6.16 GB)
+missing by year: 2016:27 2017:53 ... 2025:27,567 2026:89,273
+
+ missing excl junk/trash       src       dst      MB  account
+  89,267          89,267   367,311   294,539    5478  alice@example.com
+   2,273           2,273     2,285       121     264  bob@example.com
+   1,499           1,499     9,335     9,784      96  carol@example.com
+```
+
+The 93 % overlap says the digest is a valid key; the per-account table says
+where to look. With `--folders` it also lists the folders the missing
+messages sat in, which is how a whole-folder loss shows itself.
 
 ## Things worth knowing
 
