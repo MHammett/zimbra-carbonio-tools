@@ -168,10 +168,12 @@ messages sat in, which is how a whole-folder loss shows itself.
   subject-threaded conversation and reloads every message already in it
   to recalculate metadata (`Conversation.addChild` ->
   `DbMailItem.getByParent`). Repeated subjects make that cost grow with
-  every message, so the import decays: 1,730 -> 1,130 adds per five
-  minutes over twelve hours into one alerts mailbox. Setting
-  `zmprov ma user@example.com zimbraMailThreadingAlgorithm none` on just
-  that account took it to 10,200 per five minutes immediately. Put it
+  every message, so the import decays: from about 3 to under 2 adds a
+  second over twelve hours into one alerts mailbox, with eleven sessions.
+  Setting `zmprov ma user@example.com zimbraMailThreadingAlgorithm none`
+  on just that account took it to about 17 a second immediately. (When
+  measuring from `mailbox.log`, note that one add writes two
+  `mailop - Adding Message` lines, so halve the count.) Put it
   back afterwards with
   `zmprov ma user@example.com -zimbraMailThreadingAlgorithm none`, which
   restores inheritance from the class of service. A thread dump
