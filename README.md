@@ -242,3 +242,7 @@ message, it is gone; count it as unrecoverable rather than retrying.
 Used in October 2026 against Zimbra 8.8.15 (Ubuntu 16.04) and Carbonio CE
 on Ubuntu 22.04 and 24.04. Reads use the `mysql` client bundled with the
 product; writes go only through `zmmailbox`, never the database.
+
+## License
+
+MIT, see `LICENSE`.
