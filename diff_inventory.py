@@ -21,6 +21,10 @@ Options
                         virus-quarantine and galsync accounts); pass an
                         empty value for none
   --only=a@x,b@x        export only these accounts
+  --imported=F1,F2,...  result TSVs written by restore_import.py; every row
+                        with a new item id counts as present on DST even if
+                        its digest changed on import (Zimbra re-encodes
+                        8-bit Subject headers, so a few percent do)
 """
 import collections
 import csv
@@ -95,6 +99,18 @@ def opt(name, default=None):
     return default
 
 
+def load_imported(spec):
+    """(account, digest) pairs that restore_import.py recorded as imported."""
+    done = set()
+    for path in [x for x in (spec or "").split(",") if x]:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                r = line.rstrip("\n").split("\t")
+                if len(r) >= 5 and r[4].strip().isdigit():
+                    done.add((r[0].lower(), r[3]))
+    return done
+
+
 def year(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).year
 
@@ -134,6 +150,16 @@ def main():
     per_account = "--per-account" in sys.argv
     folders = "--folders" in sys.argv
     src, dst = load(args[0]), load(args[1])
+    imported = load_imported(opt("--imported"))
+    if imported:
+        n = 0
+        for e, a in src.items():
+            if e in dst:
+                for k, m in a["msgs"].items():
+                    if (e, k) in imported and k not in dst[e]["msgs"]:
+                        dst[e]["msgs"][k] = m
+                        n += 1
+        print(f"treating {n:,} messages as present on DST from import result files")
     if opt("--export"):
         export(src, dst, opt("--export"))
         return

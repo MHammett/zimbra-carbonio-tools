@@ -64,7 +64,12 @@ can inspect.
    `zmmailbox addMessage` once per account from a command file and tags every
    restored message so the batch can be reviewed or removed later.
 6. **Re-inventory the destination and diff again** to confirm the gap is
-   closed. Restored messages are byte-identical, so they match by digest.
+   closed, passing the importer's result files with `--imported=` so that
+   messages whose bytes changed on import still count as present. Most
+   restored messages are byte-identical and match by digest, but Zimbra
+   re-encodes 8-bit `Subject` headers as RFC 2047 on the way in, so a few
+   percent get a new digest; without the result files the diff would ask
+   you to import those again and you would create duplicates.
 
 ## Usage
 
