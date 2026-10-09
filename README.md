@@ -176,6 +176,12 @@ messages sat in, which is how a whole-folder loss shows itself.
   `zmprov ma user@example.com -zimbraMailThreadingAlgorithm none`, which
   restores inheritance from the class of service. A thread dump
   (`jcmd <mailboxd pid> Thread.print`) is how to find this kind of thing.
+- **Do not add files to a blob directory an importer is already reading.**
+  `restore_import.py` decides which rows have a file once per account when
+  it reaches that account. If a fetch lands more files while it runs, some
+  rows get imported by that run and again by whatever you run for the
+  late files. Finish fetching, then import; or import the late files from
+  their own list only after the first run has reported `done:`.
 - **Pause IMAP clients on the target mailbox** during a large import. A
   phone client that re-runs a folder search after every batch can hold the
   mailbox lock for minutes at a time and stall the import to a crawl.
